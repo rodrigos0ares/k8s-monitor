@@ -1,0 +1,21 @@
+# Build outputs
+bin/
+
+# Database files
+*.db
+
+# User config
+.k8s-monitor/
+
+# Go sum
+go.sum
+
+# Python virtual environment
+.venv/
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
