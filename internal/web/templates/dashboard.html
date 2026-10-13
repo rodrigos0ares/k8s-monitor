@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K8s Monitor Dashboard</title>
+    <style>
+        :root {
+            --bg: #0d1117; --surface: #161b22; --border: #30363d;
+            --text: #e6edf3; --text-muted: #8b949e; --accent: #58a6ff;
+            --green: #3fb950; --yellow: #d29922; --red: #f85149; --purple: #bc8cff;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+               background: var(--bg); color: var(--text); line-height: 1.5; padding: 24px; }
+        h1 { font-size: 24px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; }
+        h1 span { color: var(--accent); }
+        h2 { font-size: 18px; margin-bottom: 16px; color: var(--text-muted); }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 32px; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+        .card-title { font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .card-value { font-size: 32px; font-weight: 600; }
+        .card-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+        .severity-critical { color: var(--red); }
+        .severity-high { color: var(--red); }
+        .severity-medium { color: var(--yellow); }
+        .severity-low { color: var(--green); }
+        .severity-info { color: var(--accent); }
+
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .badge-error { background: rgba(248,81,73,0.15); color: var(--red); }
+        .badge-warning { background: rgba(210,153,34,0.15); color: var(--yellow); }
+        .badge-info { background: rgba(88,166,255,0.15); color: var(--accent); }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 32px; }
+        th { text-align: left; padding: 12px; font-size: 13px; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+        td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 14px; }
+        tr:hover { background: rgba(88,166,255,0.04); }
+
+        .analysis-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+        .analysis-card h3 { font-size: 15px; margin-bottom: 8px; }
+        .analysis-card pre { white-space: pre-wrap; word-wrap: break-word; font-size: 13px; color: var(--text-muted);
+                              background: var(--bg); padding: 12px; border-radius: 6px; margin-top: 8px; max-height: 300px; overflow-y: auto; }
+        .analysis-meta { font-size: 12px; color: var(--text-muted); display: flex; gap: 16px; margin-bottom: 8px; }
+
+        .refresh-btn { background: var(--accent); color: #fff; border: none; padding: 8px 16px; border-radius: 6px;
+                        cursor: pointer; font-size: 13px; }
+        .refresh-btn:hover { opacity: 0.9; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .auto-refresh { font-size: 12px; color: var(--text-muted); }
+
+        .ctx-selector { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+        .ctx-selector label { font-size: 14px; color: var(--text-muted); }
+        .ctx-selector select { background: var(--surface); color: var(--text); border: 1px solid var(--border);
+                                padding: 8px 14px; border-radius: 6px; font-size: 14px; cursor: pointer; min-width: 180px; }
+        .ctx-selector select:focus { outline: none; border-color: var(--accent); }
+        .ctx-btn { background: transparent; color: var(--accent); border: 1px solid var(--accent); padding: 6px 14px;
+                   border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .ctx-btn:hover { background: rgba(88,166,255,0.1); }
+        .ctx-active { background: var(--accent); color: #fff; }
+        .ctx-active:hover { background: var(--accent); opacity: 0.9; }
+
+        .sample-log { font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 12px;
+                       color: var(--text-muted); max-width: 500px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sample-log:hover { white-space: normal; word-break: break-all; }
+        td.sample-cell { max-width: 500px; }
+        .deployment-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 18px; }
+        .deployment-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 12px; }
+        .deployment-header h3 { font-size: 18px; margin-bottom: 6px; }
+        .deployment-meta { display: flex; flex-wrap: wrap; gap: 10px; color: var(--text-muted); font-size: 13px; margin-bottom: 14px; }
+        .link-row { display: flex; flex-wrap: wrap; gap: 10px; }
+        .link-btn { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; background: rgba(88,166,255,0.1); color: var(--accent); border: 1px solid rgba(88,166,255,0.35); padding: 8px 12px; border-radius: 999px; font-size: 13px; }
+        .link-btn:hover { background: rgba(88,166,255,0.16); }
+        .tabs { border-top: 1px solid var(--border); padding-top: 14px; }
+        .tab-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+        .tab-btn { background: transparent; color: var(--text-muted); border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+        .tab-btn:hover { border-color: var(--accent); color: var(--text); }
+        .tab-btn.tab-active { background: rgba(88,166,255,0.12); color: var(--accent); border-color: rgba(88,166,255,0.4); }
+        .tab-panel { display: none; background: rgba(13,17,23,0.45); border: 1px solid rgba(48,54,61,0.8); border-radius: 10px; padding: 16px; }
+        .tab-panel.tab-active { display: block; }
+        .issue-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .issue-meta .card { padding: 14px; margin: 0; }
+        .plan-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap: 16px; }
+        .plan-box { background: rgba(22,27,34,0.85); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+        .plan-box h4 { font-size: 14px; margin-bottom: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .plan-box p { margin-bottom: 12px; }
+        .plan-list { padding-left: 18px; color: var(--text); }
+        .plan-list li { margin-bottom: 8px; }
+        .command-block { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+        .pill-row { display: flex; flex-wrap: wrap; gap: 8px; }
+        .search-pill { padding: 6px 10px; border-radius: 999px; background: rgba(188,140,255,0.14); color: var(--purple); font-size: 12px; }
+
+        @media (max-width: 920px) {
+            .deployment-header { flex-direction: column; }
+            .plan-layout { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>☸ <span>K8s Monitor</span> Dashboard</h1>
+        <div>
+            <button class="refresh-btn" onclick="location.reload()">Refresh</button>
+            <div class="auto-refresh">Auto-refreshes every 60s</div>
+        </div>
+    </div>
+
+    <!-- Context Selector -->
+    <div class="ctx-selector">
+        <label>Filter by context:</label>
+        <a href="/" class="ctx-btn {{if not .SelectedContext}}ctx-active{{end}}">All Contexts</a>
+        {{range .Contexts}}
+        <a href="/?context={{.}}" class="ctx-btn {{if eq . $.SelectedContext}}ctx-active{{end}}">{{.}}</a>
+        {{end}}
+    </div>
+
+    <!-- Context Stats -->
+    <h2>Cluster Overview (last 24h)</h2>
+    <div class="grid">
+        {{range .Stats}}
+        <div class="card">
+            <div class="card-title">{{.Context}}</div>
+            <div class="card-value">{{.PodCount}} <span style="font-size:14px;color:var(--text-muted)">pods</span></div>
+            <div class="card-sub">
+                {{.TotalLogs}} logs |
+                <span class="severity-high">{{.ErrorCount}} errors</span> |
+                <span class="severity-medium">{{.WarningCount}} warnings</span>
+            </div>
+        </div>
+        {{else}}
+        <div class="card">
+            <div class="card-title">No data yet</div>
+            <div class="card-sub">Waiting for first collection cycle...</div>
+        </div>
+        {{end}}
+    </div>
+
+    <!-- DB Stats -->
+    <h2>Data Storage</h2>
+    <div class="grid">
+        {{range $table, $count := .DBStats}}
+        <div class="card">
+            <div class="card-title">{{$table}}</div>
+            <div class="card-value">{{$count}}</div>
+            <div class="card-sub">records stored</div>
+        </div>
+        {{end}}
+    </div>
+
+    <!-- Resource Efficiency / Cost Savings -->
+    <h2>Resource Efficiency &amp; Cost Savings (last 24h){{if .SelectedContext}} — {{.SelectedContext}}{{end}}</h2>
+    {{with .Rightsizing}}
+    <div class="grid">
+        <div class="card">
+            <div class="card-title">Estimated Monthly Savings</div>
+            <div class="card-value severity-low">{{printf "%.2f" .TotalMonthlySavings}} <span style="font-size:14px;color:var(--text-muted)">{{.Currency}}</span></div>
+            <div class="card-sub">if requests are right-sized</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Reclaimable CPU</div>
+            <div class="card-value">{{printf "%.2f" (divf .ReclaimableCPUMilli 1000.0)}} <span style="font-size:14px;color:var(--text-muted)">cores</span></div>
+            <div class="card-sub">{{.ReclaimableCPUMilli}} mCPU over-requested</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Reclaimable Memory</div>
+            <div class="card-value">{{printf "%.2f" (divf .ReclaimableMemMB 1024.0)}} <span style="font-size:14px;color:var(--text-muted)">GB</span></div>
+            <div class="card-sub">{{.ReclaimableMemMB}} MB over-requested</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Containers Flagged</div>
+            <div class="card-value">{{.ContainersFlagged}} <span style="font-size:14px;color:var(--text-muted)">/ {{.ContainersAnalyzed}}</span></div>
+            <div class="card-sub">analyzed for rightsizing</div>
+        </div>
+        <div class="card">
+            <div class="card-title">🚩 Under-provisioned</div>
+            <div class="card-value {{if gt .ContainersUnderProvisioned 0}}severity-high{{end}}">{{.ContainersUnderProvisioned}}</div>
+            <div class="card-sub">{{if gt .ContainersUnderProvisioned 0}}usage exceeds request — raise limits{{else}}none — all requests cover peak usage{{end}}</div>
+        </div>
+    </div>
+    {{end}}
+
+    {{if .UnderRecommendations}}
+    <h3 style="color:var(--red);">🚩 Under-provisioned — usage exceeds request</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Workload</th>
+                <th>Finding</th>
+                <th>CPU avg/peak · hist peak / req</th>
+                <th>Mem avg/peak · hist peak / req</th>
+                <th>Recommend</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .UnderRecommendations}}
+            <tr>
+                <td class="sample-cell"><span class="sample-log">[{{.Context}}] {{.Namespace}}/{{.Workload}}/{{.Container}}</span></td>
+                <td><span class="badge badge-error">🚩 under-provisioned</span></td>
+                <td>{{.AvgCPUMilli}}m / {{.MaxCPUMilli}}m <span class="card-sub">· hist {{.HistMaxCPUMilli}}m / req {{.CPURequestMilli}}m ({{printf "%.0f" .CPUUtilPct}}%)</span></td>
+                <td>{{.AvgMemMB}}MB / {{.MaxMemMB}}MB <span class="card-sub">· hist {{.HistMaxMemMB}}MB / req {{.MemRequestMB}}MB ({{printf "%.0f" .MemUtilPct}}%)</span></td>
+                <td>{{.RecommendedCPUMilli}}m / {{.RecommendedMemMB}}MB{{if or (gt .AdditionalCPUMilli 0) (gt .AdditionalMemMB 0)}}<br><span class="badge badge-error" style="margin-top:4px;">+{{.AdditionalCPUMilli}}m / +{{.AdditionalMemMB}}MB needed</span>{{end}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{end}}
+
+    {{if .OverRecommendations}}
+    <h3 style="color:var(--accent);">Over-provisioned &amp; other findings</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Workload</th>
+                <th>Finding</th>
+                <th>CPU avg/peak · hist peak / req</th>
+                <th>Mem avg/peak · hist peak / req</th>
+                <th>Recommend</th>
+                <th>Est. Savings/mo</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .OverRecommendations}}
+            <tr>
+                <td class="sample-cell"><span class="sample-log">[{{.Context}}] {{.Namespace}}/{{.Workload}}/{{.Container}}</span></td>
+                <td>
+                    {{if eq (printf "%s" .Kind) "over-provisioned"}}<span class="badge badge-info">over-provisioned</span>
+                    {{else if eq (printf "%s" .Kind) "memory-limit-risk"}}<span class="badge badge-error">OOM risk</span>
+                    {{else if eq (printf "%s" .Kind) "cpu-limit-risk"}}<span class="badge badge-warning">CPU throttle</span>
+                    {{else}}<span class="badge badge-warning">no requests</span>{{end}}
+                </td>
+                <td>{{.AvgCPUMilli}}m / {{.MaxCPUMilli}}m <span class="card-sub">· hist {{.HistMaxCPUMilli}}m / req {{.CPURequestMilli}}m ({{printf "%.0f" .CPUUtilPct}}%)</span></td>
+                <td>{{.AvgMemMB}}MB / {{.MaxMemMB}}MB <span class="card-sub">· hist {{.HistMaxMemMB}}MB / req {{.MemRequestMB}}MB ({{printf "%.0f" .MemUtilPct}}%)</span></td>
+                <td>{{.RecommendedCPUMilli}}m / {{.RecommendedMemMB}}MB</td>
+                <td>{{if gt .MonthlySavings 0.0}}<span class="severity-low">{{printf "%.2f" .MonthlySavings}} {{.Currency}}</span>{{else}}—{{end}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{end}}
+
+    {{if and (not .UnderRecommendations) (not .OverRecommendations)}}
+    <div class="card" style="margin-bottom:32px;">
+        <div class="card-sub">No rightsizing data yet. Ensure metrics-server is installed; recommendations appear after a few collection cycles.</div>
+    </div>
+    {{end}}
+
+    <!-- Deployment Issues -->
+    {{if .DeploymentIssues}}
+    <h2>Deployment Issue Workbench (last 24h){{if .SelectedContext}} — {{.SelectedContext}}{{end}}</h2>
+    {{range .DeploymentIssues}}
+    <div class="deployment-card">
+        <div class="deployment-header">
+            <div>
+                <h3>{{.Deployment}}</h3>
+                <div class="deployment-meta">
+                    <span><strong>Context:</strong> {{.Context}}</span>
+                    <span><strong>Namespace:</strong> {{.Namespace}}</span>
+                    <span><strong>Total error volume:</strong> {{.TotalCount}}</span>
+                    <span><strong>Highest severity:</strong> <span class="badge badge-{{.HighestSeverity}}">{{.HighestSeverity}}</span></span>
+                </div>
+            </div>
+            <div class="link-row">
+                {{if .Repo}}<a class="link-btn" href="{{.Repo.VSCodeURL}}">Open app repo in VS Code</a>{{end}}
+                {{if .InfraRepo}}<a class="link-btn" href="{{.InfraRepo.VSCodeURL}}">Open infra repo in VS Code</a>{{end}}
+            </div>
+        </div>
+
+        <div class="tabs" data-tabs>
+            <div class="tab-list" role="tablist">
+                {{range $idx, $tab := .Tabs}}
+                <button class="tab-btn {{if eq $idx 0}}tab-active{{end}}" type="button" data-tab-target="{{$tab.ID}}">
+                    {{$tab.Title}} · {{$tab.Count}}
+                </button>
+                {{end}}
+            </div>
+
+            {{range $idx, $tab := .Tabs}}
+            <div id="{{$tab.ID}}" class="tab-panel {{if eq $idx 0}}tab-active{{end}}">
+                <div class="issue-meta">
+                    <div class="card">
+                        <div class="card-title">Pod</div>
+                        <div>{{$tab.Pod}}</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Severity</div>
+                        <div><span class="badge badge-{{$tab.Severity}}">{{$tab.Severity}}</span></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Occurrences</div>
+                        <div>{{$tab.Count}}</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Resolution Focus</div>
+                        <div>{{$tab.Resolution}}</div>
+                    </div>
+                </div>
+
+                <div class="plan-layout">
+                    <div class="plan-box">
+                        <h4>Sample Error</h4>
+                        <div class="command-block">{{$tab.SampleLog}}</div>
+                        <h4 style="margin-top: 14px;">Plan</h4>
+                        <p><strong>{{$tab.Plan.Summary}}</strong></p>
+                        <p>{{$tab.Plan.LikelyCause}}</p>
+                        <ul class="plan-list">
+                            {{range $tab.Plan.Steps}}
+                            <li>{{.}}</li>
+                            {{end}}
+                        </ul>
+                    </div>
+
+                    <div class="plan-box">
+                        <h4>Use In VS Code</h4>
+                        <div class="link-row" style="margin-bottom: 12px;">
+                            {{if $tab.Plan.AppRepo}}<a class="link-btn" href="{{$tab.Plan.AppRepo.VSCodeURL}}">Open {{$tab.Plan.AppRepo.Name}}</a>{{end}}
+                            {{if $tab.Plan.InfraRepo}}<a class="link-btn" href="{{$tab.Plan.InfraRepo.VSCodeURL}}">Open {{$tab.Plan.InfraRepo.Name}}</a>{{end}}
+                        </div>
+
+                        {{if $tab.Plan.SearchTerms}}
+                        <h4>Search Terms</h4>
+                        <div class="pill-row" style="margin-bottom: 12px;">
+                            {{range $tab.Plan.SearchTerms}}
+                            <span class="search-pill">{{.}}</span>
+                            {{end}}
+                        </div>
+                        {{end}}
+
+                        <h4>Terminal Commands</h4>
+                        <div class="command-block">{{range $tab.Plan.Commands}}{{.}}
+{{end}}</div>
+
+                        {{if $tab.Plan.RepoSearchCommands}}
+                        <h4 style="margin-top: 14px;">Find Or Clone Missing Repo</h4>
+                        <div class="command-block">{{range $tab.Plan.RepoSearchCommands}}{{.}}
+{{end}}</div>
+                        {{end}}
+                    </div>
+                </div>
+            </div>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+    {{end}}
+
+    <!-- Analysis Results -->
+    <h2>AI Insights</h2>
+    {{range .Analyses}}
+    <div class="analysis-card">
+        <div class="analysis-meta">
+            <span class="badge badge-{{if eq .Severity "critical"}}error{{else if eq .Severity "high"}}error{{else if eq .Severity "medium"}}warning{{else}}info{{end}}">{{.Severity}}</span>
+            <span>{{.AnalysisType}}</span>
+            <span>{{.Context}}</span>
+            <span>{{.CreatedAt.Format "2006-01-02 15:04"}}</span>
+        </div>
+        <h3>{{.Summary}}</h3>
+        <pre>{{.Details}}</pre>
+    </div>
+    {{else}}
+    <div class="card">
+        <div class="card-sub">No analyses yet. The AI engine will run its first analysis after collecting data.</div>
+    </div>
+    {{end}}
+
+    <script>
+        document.querySelectorAll('[data-tabs]').forEach((tabs) => {
+            const buttons = tabs.querySelectorAll('[data-tab-target]');
+            const panels = tabs.querySelectorAll('.tab-panel');
+            buttons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    const target = button.getAttribute('data-tab-target');
+                    buttons.forEach((item) => item.classList.remove('tab-active'));
+                    panels.forEach((panel) => panel.classList.remove('tab-active'));
+                    button.classList.add('tab-active');
+                    const panel = tabs.querySelector('#' + target);
+                    if (panel) {
+                        panel.classList.add('tab-active');
+                    }
+                });
+            });
+        });
+        setTimeout(() => location.reload(), 60000);
+    </script>
+</body>
+</html>

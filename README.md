@@ -5,6 +5,7 @@
 Collects logs and metrics from **multiple kubectl contexts**, stores 15 days of history in a local SQLite database, and uses a local LLM to analyze errors, warnings, and performance trends — all running on your machine with zero cloud dependency.
 
 [![Go](https://img.shields.io/badge/Go-1.23+-00ADD8?style=for-the-badge&logo=go)](https://go.dev/)
+[![CI](https://img.shields.io/github/actions/workflow/status/rodrigos0ares/k8s-monitor/ci.yml?branch=main&style=for-the-badge&logo=github)](https://github.com/rodrigos0ares/k8s-monitor/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 [![GitHub last commit](https://img.shields.io/github/last-commit/rodrigos0ares/k8s-monitor?style=for-the-badge)](https://github.com/rodrigos0ares/k8s-monitor)
 
@@ -24,14 +25,15 @@ Collects logs and metrics from **multiple kubectl contexts**, stores 15 days of 
 - Go 1.23+ (to build)
 - kubectl configured with your contexts
 - One local inference runtime:
-  - llama.cpp server exposing OpenAI-compatible `/v1/*` endpoints
+  - llama.cpp server exposing OpenAI-compatible `/v1/*` endpoints, **or**
+  - LangChain Go server exposing OpenAI-compatible `/v1/*` endpoints
 - NVIDIA GPU with 8GB VRAM (for running LLM models)
 - metrics-server installed in your clusters (optional, for CPU/memory data)
 
 ## Quick Start
 
 ```bash
-# 1. Start llama.cpp server with Qwen3.5-9B quantized GGUF (recommended)
+# 1. Start your inference runtime (llama.cpp or LangChain Go)
 llama-server \
   -m /models/Qwen3.5-9B-Instruct-Q4_K_M.gguf \
   --alias qwen3.5-9b \
@@ -150,6 +152,30 @@ Config is stored at `~/.k8s-monitor/config.json`:
     "discord": { "enabled": false, "webhook_url": "" }
   }
 }
+```
+
+## Inference Providers
+
+k8s-monitor supports two inference backends, both using the OpenAI-compatible `/v1/*` API:
+
+### llama.cpp
+
+The original backend — runs GGUF models directly via [llama.cpp](https://github.com/ggerganov/llama.cpp).
+
+```bash
+k8s-monitor config set-provider llama.cpp
+k8s-monitor config set-endpoint http://localhost:8080
+k8s-monitor config set-model qwen3.5-9b
+```
+
+### LangChain Go
+
+[LangChain Go](https://github.com/tmc/langchaingo) provides a flexible gateway that can serve models via llama.cpp, Ollama, vLLM, or any other backend LangChain supports. This lets you switch inference backends without changing k8s-monitor.
+
+```bash
+k8s-monitor config set-provider langchain-go
+k8s-monitor config set-endpoint http://localhost:9090  # LangChain Go gateway
+k8s-monitor config set-model qwen3.5-9b
 ```
 
 ## Resource Efficiency & Cost Savings

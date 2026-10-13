@@ -1,5 +1,5 @@
 BINARY := k8s-monitor
-PKG := github.com/rodrigo/k8s-monitor
+PKG := github.com/rodrigos0ares/k8s-monitor
 
 .PHONY: build run clean install test lint benchmark purge-pods
 

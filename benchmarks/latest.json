@@ -1,0 +1,48 @@
+{
+  "created_at": "2026-05-30T19:24:47.644469928Z",
+  "provider": "llama.cpp",
+  "endpoint": "http://localhost:8080",
+  "profile": "balanced",
+  "prompts": 3,
+  "models": [
+    {
+      "model": "qwen2.5-coder:7b",
+      "score": -1,
+      "summary": {
+        "Model": "",
+        "Runs": 0,
+        "SuccessfulRuns": 0,
+        "AverageDuration": 0,
+        "AverageQuality": 0,
+        "AverageOutputChars": 0
+      },
+      "results": null
+    },
+    {
+      "model": "deepseek-coder:6.7b",
+      "score": -1,
+      "summary": {
+        "Model": "",
+        "Runs": 0,
+        "SuccessfulRuns": 0,
+        "AverageDuration": 0,
+        "AverageQuality": 0,
+        "AverageOutputChars": 0
+      },
+      "results": null
+    },
+    {
+      "model": "phi3.5",
+      "score": -1,
+      "summary": {
+        "Model": "",
+        "Runs": 0,
+        "SuccessfulRuns": 0,
+        "AverageDuration": 0,
+        "AverageQuality": 0,
+        "AverageOutputChars": 0
+      },
+      "results": null
+    }
+  ]
+}
