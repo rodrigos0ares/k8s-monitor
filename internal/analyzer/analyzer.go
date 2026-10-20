@@ -13,6 +13,7 @@ import (
 
 	"github.com/rodrigos0ares/k8s-monitor/internal/config"
 	"github.com/rodrigos0ares/k8s-monitor/internal/insights"
+	"github.com/rodrigos0ares/k8s-monitor/internal/langchain"
 	"github.com/rodrigos0ares/k8s-monitor/internal/storage"
 )
 
